@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+enum ProjectStatus {
+  active
+  invalid
+  frozen
+}
+
+enum TickStatus {
+  pending
+  running
+  done
+  failed
+}
+
+enum JudgeRunStatus {
+  pending
+  done
+  failed
+  skipped
+}
+
+enum ArenaEventType {
+  repo_updated
+  requirements_missing
+  setup_passed
+  setup_failed
+  judge_rerun
+  score_updated
+}
+
+enum Category {
+  ai_sales_automation
+  ai_support_ops
+  ai_marketing_systems
+  devtools_agents
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(user)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projects     Project[]
+}
+
+model Project {
+  id        String        @id @default(cuid())
+  ownerId   String
+  owner     User          @relation(fields: [ownerId], references: [id])
+
+  name      String?
+  team      String?
+  category  Category
+
+  repoUrl   String
+  demoUrl   String
+  demoType  String
+
+  status    ProjectStatus @default(active)
+
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  snapshots    RepoSnapshot[]
+  evaluations  Evaluation[]
+  judgeRuns    JudgeRun[]
+  scores       Score[]
+  events       ArenaEvent[]
+
+  @@index([category])
+  @@index([status])
+}
+
+model Tick {
+  id        String     @id @default(cuid())
+  tickAt    DateTime   @unique
+  status    TickStatus @default(pending)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  snapshots   RepoSnapshot[]
+  evaluations Evaluation[]
+  judgeRuns   JudgeRun[]
+  scores      Score[]
+  events      ArenaEvent[]
+}
+
+model RepoSnapshot {
+  id            String   @id @default(cuid())
+  projectId     String
+  tickId        String
+  defaultBranch String?
+  commitSha     String
+  changedFiles  Json?
+  githubMeta    Json?
+  fetchedAt     DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id])
+  tick    Tick    @relation(fields: [tickId], references: [id])
+
+  @@unique([projectId, tickId])
+  @@index([projectId, commitSha])
+}
+
+model Evaluation {
+  id                String   @id @default(cuid())
+  projectId          String
+  tickId             String
+  commitSha          String
+
+  requiredFilesOk    Boolean @default(false)
+  hackathonJsonOk    Boolean @default(false)
+  hackathonJsonErrors String?
+  readmeOk           Boolean @default(false)
+  readmeFindings     Json?
+
+  demoReachable      Boolean @default(false)
+  demoError          String?
+
+  setupAttempted     Boolean @default(false)
+  setupOk            Boolean @default(false)
+  setupLogTruncated  String?
+
+  fileTreeSummary    Json?
+  artifactJson       Json
+
+  createdAt          DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id])
+  tick    Tick    @relation(fields: [tickId], references: [id])
+
+  @@unique([projectId, tickId])
+  @@index([commitSha])
+}
+
+model JudgeRun {
+  id          String        @id @default(cuid())
+  projectId   String
+  tickId      String
+  commitSha   String
+  status      JudgeRunStatus @default(pending)
+  reasonSkipped String?
+  createdAt   DateTime      @default(now())
+
+  outputs     JudgeOutput[]
+
+  project Project @relation(fields: [projectId], references: [id])
+  tick    Tick    @relation(fields: [tickId], references: [id])
+
+  @@unique([projectId, tickId])
+}
+
+model JudgeOutput {
+  id            String   @id @default(cuid())
+  judgeRunId    String
+  judgeName     String
+  outputJson    Json
+  citationsCount Int     @default(0)
+  validJson     Boolean @default(false)
+  validationErrors String?
+  createdAt     DateTime @default(now())
+
+  judgeRun JudgeRun @relation(fields: [judgeRunId], references: [id])
+
+  @@index([judgeName])
+}
+
+model Score {
+  id           String   @id @default(cuid())
+  projectId    String
+  tickId       String
+  commitSha    String
+  totalScore   Int
+  breakdownJson Json
+  penaltiesJson Json
+  deltaVsPrev  Int @default(0)
+  createdAt    DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id])
+  tick    Tick    @relation(fields: [tickId], references: [id])
+
+  @@unique([projectId, tickId])
+  @@index([totalScore])
+}
+
+model ArenaEvent {
+  id        String         @id @default(cuid())
+  projectId String
+  tickId    String
+  type      ArenaEventType
+  payloadJson Json
+  createdAt DateTime       @default(now())
+
+  project Project @relation(fields: [projectId], references: [id])
+  tick    Tick    @relation(fields: [tickId], references: [id])
+
+  @@index([createdAt])
+  @@index([type])
+}
