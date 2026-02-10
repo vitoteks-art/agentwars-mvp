@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: agentwars
+      POSTGRES_PASSWORD: agentwars
+      POSTGRES_DB: agentwars
+    ports:
+      - "5432:5432"
+    volumes:
+      - agentwars_db:/var/lib/postgresql/data
+
+volumes:
+  agentwars_db:
