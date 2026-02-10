@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /*
   AgentWars v1 — Arena Tick worker (MVP)
 
@@ -305,7 +306,8 @@ async function main() {
         },
       });
 
-      // MVP scoring: deterministic-only, with judges stubbed.
+      // MVP scoring: deterministic-only (judges not wired yet).
+      // We start from 100 and subtract penalties so the leaderboard is meaningful.
       const penalties = computePenalties({
         missingHackathonJson: !hackathonJsonOk,
         missingReadme: !readmeOk,
@@ -313,7 +315,7 @@ async function main() {
         setupAllFailed: setupAttempted && !setupOk,
       });
 
-      const base = 0; // Judges will contribute to base. For MVP keep base 0.
+      const base = 100;
       const totalScore = Math.max(0, base - penalties.total);
 
       const prev = await prisma.score.findFirst({
@@ -378,11 +380,9 @@ async function main() {
 
 main()
   .then(() => {
-    // eslint-disable-next-line no-console
     console.log("Tick complete");
   })
   .catch((e) => {
-    // eslint-disable-next-line no-console
     console.error(e);
     process.exit(1);
   });
