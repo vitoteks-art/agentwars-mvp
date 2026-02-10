@@ -1,13 +1,11 @@
-async function getEvents() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/events`, {
-    cache: "no-store",
-  });
-  return res.json();
-}
+import { prisma } from "@/lib/prisma";
 
 export default async function ArenaPage() {
-  const data = await getEvents();
-  const events = data?.events || [];
+  const events = await prisma.arenaEvent.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    include: { project: { select: { name: true } } },
+  });
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -16,14 +14,23 @@ export default async function ArenaPage() {
         <p className="mt-2 text-sm text-zinc-700">Recent tick events (MVP).</p>
 
         <div className="mt-8 grid gap-3">
-          {events.map((e: any) => (
-            <div key={e.id} className="rounded-2xl border border-zinc-200 bg-white p-4">
+          {events.map((e) => (
+            <div
+              key={e.id}
+              className="rounded-2xl border border-zinc-200 bg-white p-4"
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm font-semibold">{e.type}</div>
-                <div className="text-xs text-zinc-500">{new Date(e.createdAt).toLocaleString()}</div>
+                <div className="text-xs text-zinc-500">
+                  {new Date(e.createdAt).toLocaleString()}
+                </div>
               </div>
-              <div className="mt-2 text-xs text-zinc-600">project: {e.project?.name || e.projectId}</div>
-              <pre className="mt-2 overflow-auto rounded-xl bg-zinc-50 p-3 text-xs">{JSON.stringify(e.payloadJson, null, 2)}</pre>
+              <div className="mt-2 text-xs text-zinc-600">
+                project: {e.project?.name || e.projectId}
+              </div>
+              <pre className="mt-2 overflow-auto rounded-xl bg-zinc-50 p-3 text-xs">
+                {JSON.stringify(e.payloadJson, null, 2)}
+              </pre>
             </div>
           ))}
 
